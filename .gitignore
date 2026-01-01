@@ -1,0 +1,35 @@
+# Pliki wideo - zbyt duże dla Git
+static/videos/*.mp4
+static/videos/*.avi
+static/videos/*.mov
+static/videos/*.mkv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Flask
+instance/
+.webassets-cache
+
+# CSV z wynikami testów (opcjonalnie - usuń jeśli chcesz commitować)
+# wyniki_testu.csv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+

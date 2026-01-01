@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Test wideo</title>
+
+<style>
+body {
+    margin: 0;
+    background: #363637;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+.hidden { display: none; }
+
+#frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #363637;
+}
+
+video {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* Ukryj natywne kontrolki odtwarzacza w większości przeglądarek */
+video::-webkit-media-controls,
+video::-webkit-media-controls-panel,
+video::-webkit-media-controls-enclosure {
+    display: none !important;
+    -webkit-appearance: none;
+}
+
+button {
+    font-size: 26px;
+    padding: 20px 40px;
+    margin: 10px;
+    cursor: pointer;
+}
+
+.rating-btn {
+    width: 80px;
+}
+
+.selected {
+    background: green;
+    color: white;
+}
+
+#confirm {
+    background: darkgreen;
+    color: white;
+}
+</style>
+</head>
+
+<body>
+
+<!-- ================= DANE TESTERA ================= -->
+<div id="introScreen">
+    <h1>Witaj w teście wideo</h1>
+    <p>Podaj kilka informacji o sobie przed rozpoczęciem.</p>
+    <div>
+        <label>Wiek:
+            <input id="ageInput" type="number" min="10" max="120" required>
+        </label>
+    </div>
+    <div>
+        <label>Płeć:</label>
+        <label><input type="radio" name="gender" value="kobieta">Kobieta</label>
+        <label><input type="radio" name="gender" value="mężczyzna">Mężczyzna</label>
+        <label><input type="radio" name="gender" value="inna">Inna / wolę nie podawać</label>
+    </div>
+    <div>
+        <label>Ulubiony gatunek filmu:
+            <select id="genreSelect" required>
+                <option value="">-- wybierz --</option>
+                <option value="akcja">Akcja</option>
+                <option value="komedia">Komedia</option>
+                <option value="dramat">Dramat</option>
+                <option value="horror">Horror</option>
+                <option value="sci-fi">Sci-fi</option>
+                <option value="dokument">Dokument</option>
+                <option value="inny">Inny</option>
+            </select>
+        </label>
+    </div>
+    <button onclick="startTest()">Rozpocznij test</button>
+</div>
+
+<!-- ================= WYBÓR URZĄDZENIA ================= -->
+<div id="deviceScreen" class="hidden">
+    <h1>Wybierz urządzenie</h1>
+    <button onclick="selectDevice('monitor')">Monitor</button>
+    <button onclick="selectDevice('tablet')">Tablet</button>
+    <button onclick="selectDevice('telefon')">Telefon</button>
+</div>
+
+<!-- ================= TEST ================= -->
+<div id="testScreen" class="hidden">
+
+    <!-- ===== FILM ===== -->
+    <div id="videoContainer">
+        <div id="frame">
+            <video id="video"></video>
+        </div>
+    </div>
+
+    <!-- ===== OCENA ===== -->
+    <div id="ratingContainer" class="hidden">
+        <h1>Oceń film</h1>
+
+        <div>
+            <button class="rating-btn" onclick="selectRating(1)">1</button>
+            <button class="rating-btn" onclick="selectRating(2)">2</button>
+            <button class="rating-btn" onclick="selectRating(3)">3</button>
+            <button class="rating-btn" onclick="selectRating(4)">4</button>
+            <button class="rating-btn" onclick="selectRating(5)">5</button>
+        </div>
+
+        <div>
+            <button id="confirm" onclick="confirmRating()">ZATWIERDŹ</button>
+        </div>
+    </div>
+
+</div>
+
+
+<!-- ================= KONIEC ================= -->
+<div id="endScreen" class="hidden">
+    <h1>Dziękujemy za udział w teście</h1>
+</div>
+
+<script>
+    const videoContainer = document.getElementById("videoContainer");
+const ratingContainer = document.getElementById("ratingContainer");
+
+const videos = {{ videos|tojson }};
+const testerId = {{ tester_id|tojson }};
+
+const devices = {
+    monitor: [1920,1080],
+    tablet: [900,700],
+    telefon: [360,640]
+};
+
+let device = null;
+let videoIndex = 0;
+let rating = null;
+let testerData = null;
+
+const introScreen = document.getElementById("introScreen");
+const deviceScreen = document.getElementById("deviceScreen");
+const testScreen = document.getElementById("testScreen");
+const endScreen = document.getElementById("endScreen");
+
+const video = document.getElementById("video");
+const frame = document.getElementById("frame");
+const ratingButtons = document.querySelectorAll(".rating-btn");
+const ageInput = document.getElementById("ageInput");
+const genreSelect = document.getElementById("genreSelect");
+
+// Blokada pauzowania klawiaturą (spacja, strzałki) na czas testu
+document.addEventListener("keydown", (e) => {
+    if (document.fullscreenElement === video) {
+        if ([" ", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "k", "j", "l"].includes(e.key)) {
+            e.preventDefault();
+        }
+    }
+});
+
+/* ================= DANE TESTERA ================= */
+function startTest() {
+    const age = parseInt(ageInput.value, 10);
+    const gender = document.querySelector("input[name='gender']:checked")?.value;
+    const genre = genreSelect.value;
+
+    if (!age || age < 10 || age > 120) {
+        alert("Podaj poprawny wiek (10-120).");
+        return;
+    }
+    if (!gender) {
+        alert("Wybierz płeć.");
+        return;
+    }
+    if (!genre) {
+        alert("Wybierz ulubiony gatunek filmu.");
+        return;
+    }
+
+    testerData = { id: testerId, age, gender, genre };
+    introScreen.classList.add("hidden");
+    deviceScreen.classList.remove("hidden");
+}
+
+/* ================= FULLSCREEN ================= */
+function enterFullscreen(elem) {
+    if (elem.requestFullscreen) elem.requestFullscreen();
+    else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+    else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+}
+
+function exitFullscreen() {
+    if (document.fullscreenElement) {
+        document.exitFullscreen();
+    }
+}
+
+/* ================= DEVICE ================= */
+function selectDevice(d) {
+    device = d;
+
+    deviceScreen.classList.add("hidden");
+    testScreen.classList.remove("hidden");
+
+    frame.style.width = devices[d][0] + "px";
+    frame.style.height = devices[d][1] + "px";
+
+    loadVideo();
+}
+
+/* ================= VIDEO ================= */
+function loadVideo() {
+    rating = null;
+    ratingButtons.forEach(b => b.classList.remove("selected"));
+
+    ratingContainer.classList.add("hidden");
+    videoContainer.classList.remove("hidden");
+
+    video.src = "/static/videos/" + videos[videoIndex];
+    // Wyłączamy kontrolki i dodatkowe możliwości pauzowania
+    video.controls = false;
+    video.oncontextmenu = (e) => e.preventDefault();
+
+    video.onloadeddata = () => {
+        enterFullscreen(video);
+        video.play();
+    };
+
+    video.onended = () => {
+        exitFullscreen();
+        showRating();
+    };
+}
+
+
+/* ================= OCENA ================= */
+function showRating() {
+    videoContainer.classList.add("hidden");
+    ratingContainer.classList.remove("hidden");
+}
+
+
+function selectRating(r) {
+    rating = r;
+    ratingButtons.forEach(b => b.classList.remove("selected"));
+    ratingButtons[r - 1].classList.add("selected");
+}
+
+function confirmRating() {
+    if (!rating) {
+        alert("Wybierz ocenę");
+        return;
+    }
+
+    fetch("/save", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            tester: testerData.id,
+            age: testerData.age,
+            gender: testerData.gender,
+            genre: testerData.genre,
+            video: videos[videoIndex],
+            device: device,
+            rating: rating
+        })
+    });
+
+    videoIndex++;
+    video.style.display = "block";
+
+    if (videoIndex >= videos.length) {
+        testScreen.classList.add("hidden");
+        endScreen.classList.remove("hidden");
+        return;
+    }
+
+    loadVideo();
+}
+</script>
+
+
+</body>
+</html>

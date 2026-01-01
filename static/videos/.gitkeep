@@ -1,0 +1,3 @@
+# Ten plik zapewnia, że folder videos będzie w repozytorium Git
+# Pliki wideo są ignorowane przez .gitignore ze względu na rozmiar
+
