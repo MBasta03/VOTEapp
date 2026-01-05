@@ -1,4 +1,4 @@
-id_testera,wiek,plec,gatunek,nazwa_filmu,urzadzenie,ocena
+numer_użytkownika,wiek,plec,gatunek,nazwa_filmu,urzadzenie,ocena
 tester_1,fragment.mp4,monitor,5,,,
 tester_1,fragment10.mp4,monitor,2,,,
 tester_1,fragment11.mp4,monitor,2,,,
@@ -19,3 +19,12 @@ uzytkownik3,22,mężczyzna,horror,fragment.mp4,monitor,5
 uzytkownik3,22,mężczyzna,horror,fragment10.mp4,monitor,5
 uzytkownik4,34,mężczyzna,horror,fragment.mp4,tablet,3
 uzytkownik4,34,mężczyzna,horror,fragment10.mp4,tablet,5
+uzytkownik5,32,mężczyzna,horror,fragment.mp4,monitor,5
+101,32,inna,akcja,fragment.mp4,monitor,5
+102,32,mężczyzna,sci-fi,fragment.mp4,monitor,5
+102,32,mężczyzna,sci-fi,fragment10.mp4,monitor,4
+1001,30,kobieta,sci-fi,fragment10.mp4,telefon,2
+10000,20,mężczyzna,sci-fi,fragment10.mp4,tablet,2
+1,32,mężczyzna,horror,fragment10.mp4,monitor,4
+201,32,inna,komedia,fragment8.mp4,tablet,5
+2322,14,kobieta,dokument,fragment5.mp4,monitor,1

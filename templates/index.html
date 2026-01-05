@@ -15,7 +15,7 @@ body {
 
 .hidden { display: none; }
 
-#frame {
+#frame, #exampleFrame {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -47,7 +47,12 @@ button {
     width: 80px;
 }
 
-.selected {
+.rating-btn:hover:not(.selected) {
+    background: green;
+    color: white;
+}
+
+.rating-btn.selected {
     background: green;
     color: white;
 }
@@ -65,6 +70,11 @@ button {
 <div id="introScreen">
     <h1>Witaj w teście wideo</h1>
     <p>Podaj kilka informacji o sobie przed rozpoczęciem.</p>
+    <div>
+        <label>ID testera:
+            <input id="testerIdInput" type="text" required>
+        </label>
+    </div>
     <div>
         <label>Wiek:
             <input id="ageInput" type="number" min="10" max="120" required>
@@ -90,7 +100,46 @@ button {
             </select>
         </label>
     </div>
-    <button onclick="startTest()">Rozpocznij test</button>
+    <button onclick="showInstruction()">Dalej</button>
+</div>
+
+<!-- ================= INSTRUKCJA ================= -->
+<div id="instructionScreen" class="hidden">
+    <h1>ZOSTANIESZ PODDANY TESTOWI POLEGAJĄCEMU NA OCENIE JAKOŚCI FILMÓW NA RÓŻNYCH URZĄDZENIACH</h1>
+    <button onclick="startExampleTest()">ROZPOCZNIJ PRZYKŁADOWY TEST</button>
+</div>
+
+<!-- ================= PRZYKŁADOWY TEST ================= -->
+<div id="exampleTestScreen" class="hidden">
+    <!-- ===== FILM ===== -->
+    <div id="exampleVideoContainer">
+        <div id="exampleFrame">
+            <video id="exampleVideo"></video>
+        </div>
+    </div>
+
+    <!-- ===== OCENA ===== -->
+    <div id="exampleRatingContainer" class="hidden">
+        <h1>Oceń film</h1>
+
+        <div>
+            <button class="rating-btn" onclick="selectExampleRating(1)">1</button>
+            <button class="rating-btn" onclick="selectExampleRating(2)">2</button>
+            <button class="rating-btn" onclick="selectExampleRating(3)">3</button>
+            <button class="rating-btn" onclick="selectExampleRating(4)">4</button>
+            <button class="rating-btn" onclick="selectExampleRating(5)">5</button>
+        </div>
+
+        <div>
+            <button id="exampleConfirm" onclick="confirmExampleRating()">ZATWIERDŹ</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= PRZYCISK ROZPOCZNIJ TEST ================= -->
+<div id="startRealTestScreen" class="hidden">
+    <h1>Przykładowy test zakończony</h1>
+    <button onclick="startRealTest()">ROZPOCZNIJ TEST</button>
 </div>
 
 <!-- ================= WYBÓR URZĄDZENIA ================= -->
@@ -141,7 +190,6 @@ button {
 const ratingContainer = document.getElementById("ratingContainer");
 
 const videos = {{ videos|tojson }};
-const testerId = {{ tester_id|tojson }};
 
 const devices = {
     monitor: [1920,1080],
@@ -153,21 +201,31 @@ let device = null;
 let videoIndex = 0;
 let rating = null;
 let testerData = null;
+let shuffledVideos = []; // Losowa kolejność filmów dla właściwego testu
 
 const introScreen = document.getElementById("introScreen");
+const instructionScreen = document.getElementById("instructionScreen");
+const exampleTestScreen = document.getElementById("exampleTestScreen");
+const startRealTestScreen = document.getElementById("startRealTestScreen");
 const deviceScreen = document.getElementById("deviceScreen");
 const testScreen = document.getElementById("testScreen");
 const endScreen = document.getElementById("endScreen");
 
 const video = document.getElementById("video");
+const exampleVideo = document.getElementById("exampleVideo");
 const frame = document.getElementById("frame");
-const ratingButtons = document.querySelectorAll(".rating-btn");
+const exampleFrame = document.getElementById("exampleFrame");
+const testerIdInput = document.getElementById("testerIdInput");
 const ageInput = document.getElementById("ageInput");
 const genreSelect = document.getElementById("genreSelect");
 
+let isExampleTest = false;
+let exampleRating = null;
+
 // Blokada pauzowania klawiaturą (spacja, strzałki) na czas testu
 document.addEventListener("keydown", (e) => {
-    if (document.fullscreenElement === video) {
+    const fullscreenElement = document.fullscreenElement;
+    if (fullscreenElement === video || fullscreenElement === exampleVideo) {
         if ([" ", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "k", "j", "l"].includes(e.key)) {
             e.preventDefault();
         }
@@ -175,11 +233,16 @@ document.addEventListener("keydown", (e) => {
 });
 
 /* ================= DANE TESTERA ================= */
-function startTest() {
+function showInstruction() {
+    const testerId = testerIdInput.value.trim();
     const age = parseInt(ageInput.value, 10);
     const gender = document.querySelector("input[name='gender']:checked")?.value;
     const genre = genreSelect.value;
 
+    if (!testerId) {
+        alert("Podaj ID testera.");
+        return;
+    }
     if (!age || age < 10 || age > 120) {
         alert("Podaj poprawny wiek (10-120).");
         return;
@@ -195,7 +258,34 @@ function startTest() {
 
     testerData = { id: testerId, age, gender, genre };
     introScreen.classList.add("hidden");
+    instructionScreen.classList.remove("hidden");
+}
+
+function startExampleTest() {
+    instructionScreen.classList.add("hidden");
+    exampleTestScreen.classList.remove("hidden");
+    isExampleTest = true;
+    
+    exampleFrame.style.width = devices.monitor[0] + "px";
+    exampleFrame.style.height = devices.monitor[1] + "px";
+    
+    loadExampleVideo();
+}
+
+function startRealTest() {
+    startRealTestScreen.classList.add("hidden");
     deviceScreen.classList.remove("hidden");
+    isExampleTest = false;
+    videoIndex = 0;
+    
+    // Tworzymy losową kolejność filmów, pomijając pierwszy (użyty w przykładowym teście)
+    const videosForTest = videos.slice(1); // Wszystkie filmy oprócz pierwszego
+    shuffledVideos = [...videosForTest];
+    // Funkcja do mieszania tablicy (Fisher-Yates shuffle)
+    for (let i = shuffledVideos.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledVideos[i], shuffledVideos[j]] = [shuffledVideos[j], shuffledVideos[i]];
+    }
 }
 
 /* ================= FULLSCREEN ================= */
@@ -224,15 +314,63 @@ function selectDevice(d) {
     loadVideo();
 }
 
+/* ================= PRZYKŁADOWY VIDEO ================= */
+function loadExampleVideo() {
+    exampleRating = null;
+    const exampleRatingButtons = document.querySelectorAll("#exampleRatingContainer .rating-btn");
+    exampleRatingButtons.forEach(b => b.classList.remove("selected"));
+
+    document.getElementById("exampleRatingContainer").classList.add("hidden");
+    document.getElementById("exampleVideoContainer").classList.remove("hidden");
+
+    exampleVideo.src = "/static/videos/" + videos[0];
+    exampleVideo.controls = false;
+    exampleVideo.oncontextmenu = (e) => e.preventDefault();
+
+    exampleVideo.onloadeddata = () => {
+        enterFullscreen(exampleVideo);
+        exampleVideo.play();
+    };
+
+    exampleVideo.onended = () => {
+        exitFullscreen();
+        showExampleRating();
+    };
+}
+
+function showExampleRating() {
+    document.getElementById("exampleVideoContainer").classList.add("hidden");
+    document.getElementById("exampleRatingContainer").classList.remove("hidden");
+}
+
+function selectExampleRating(r) {
+    exampleRating = r;
+    const exampleRatingButtons = document.querySelectorAll("#exampleRatingContainer .rating-btn");
+    exampleRatingButtons.forEach(b => b.classList.remove("selected"));
+    exampleRatingButtons[r - 1].classList.add("selected");
+}
+
+function confirmExampleRating() {
+    if (!exampleRating) {
+        alert("Wybierz ocenę");
+        return;
+    }
+
+    // Przykładowy test nie zapisuje do CSV
+    exampleTestScreen.classList.add("hidden");
+    startRealTestScreen.classList.remove("hidden");
+}
+
 /* ================= VIDEO ================= */
 function loadVideo() {
     rating = null;
+    const ratingButtons = document.querySelectorAll("#ratingContainer .rating-btn");
     ratingButtons.forEach(b => b.classList.remove("selected"));
 
     ratingContainer.classList.add("hidden");
     videoContainer.classList.remove("hidden");
 
-    video.src = "/static/videos/" + videos[videoIndex];
+    video.src = "/static/videos/" + shuffledVideos[videoIndex];
     // Wyłączamy kontrolki i dodatkowe możliwości pauzowania
     video.controls = false;
     video.oncontextmenu = (e) => e.preventDefault();
@@ -258,6 +396,7 @@ function showRating() {
 
 function selectRating(r) {
     rating = r;
+    const ratingButtons = document.querySelectorAll("#ratingContainer .rating-btn");
     ratingButtons.forEach(b => b.classList.remove("selected"));
     ratingButtons[r - 1].classList.add("selected");
 }
@@ -276,7 +415,7 @@ function confirmRating() {
             age: testerData.age,
             gender: testerData.gender,
             genre: testerData.genre,
-            video: videos[videoIndex],
+            video: shuffledVideos[videoIndex],
             device: device,
             rating: rating
         })
@@ -285,7 +424,7 @@ function confirmRating() {
     videoIndex++;
     video.style.display = "block";
 
-    if (videoIndex >= videos.length) {
+    if (videoIndex >= shuffledVideos.length) {
         testScreen.classList.add("hidden");
         endScreen.classList.remove("hidden");
         return;

@@ -1,13 +1,12 @@
 from flask import Flask, render_template, request, jsonify
 import csv
 import os
-import re
 
 app = Flask(__name__)
 
 VIDEO_FOLDER = "static/videos"
 CSV_FILE = "wyniki_testu.csv"
-CSV_HEADER = ["id_testera", "wiek", "plec", "gatunek", "nazwa_filmu", "urzadzenie", "ocena"]
+CSV_HEADER = ["numer_użytkownika", "wiek", "plec", "gatunek", "nazwa_filmu", "urzadzenie", "ocena"]
 
 
 def ensure_csv_header() -> None:
@@ -41,31 +40,11 @@ def ensure_csv_header() -> None:
         writer.writerows(normalized_rows)
 
 
-def get_next_tester_id() -> str:
-    """Return next sequential tester id (np. uzytkownik1, uzytkownik2)."""
-    max_id = 0
-    if not os.path.exists(CSV_FILE):
-        return "uzytkownik1"
-
-    with open(CSV_FILE, newline="", encoding="utf-8") as f:
-        reader = csv.reader(f)
-        next(reader, None)  # pomiń nagłówek
-        for row in reader:
-            if not row:
-                continue
-            match = re.search(r"(\d+)$", row[0])
-            if match:
-                max_id = max(max_id, int(match.group(1)))
-
-    return f"uzytkownik{max_id + 1}"
-
-
 @app.route("/")
 def index():
     ensure_csv_header()
-    tester_id = get_next_tester_id()
     videos = sorted(os.listdir(VIDEO_FOLDER))
-    return render_template("index.html", videos=videos, tester_id=tester_id)
+    return render_template("index.html", videos=videos)
 
 
 @app.route("/save", methods=["POST"])
